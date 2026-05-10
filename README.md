@@ -2,28 +2,24 @@
 ![development status](https://img.shields.io/badge/status-under_development-orange)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/OliverDietrich/microtiter-plate-analysis-toolkit/total)
 
-R package for the analysis of microtiter plate-based data. Data must be attributable to a specific well (e.g. A1) in a plate (e.g. P1). The PlateData object stores the layout and data as data.frames connected by an index column. The plate type (e.g. 6-well, 24-well, 96-well is determined automatically and stored as 'type').
+R package for the analysis of microtiter plate-based data. Data usually comes from spectrophotometers measuring optical density (OD), fluorescence or luminescence across time, either in cycles or minutes.
 
-<img src="img/overview.png"/>
+Measurements must be attributable to a specific key combined from plate and well, for example the key P1_A1 from plate P1 and well A1. If multiple plates are combined, the run identifier can be added as part of the plate, for example 2026-05-09_Plate-1.
+
+The PlateData object stores imported measurements ('counts') and 'layout' as data.frames. Internally, counts and layout are merged into 'raw' by the key and split into 'blank', 'control', and 'data'. Blank and control are summarized from replicates into mean and standard deviation (sd), the summarized values of data are stored in 'summary'.
+
+The plate type (e.g. 6-well, 24-well, 96-well is determined automatically and stored as 'type').
+
+<img src="img/schematic.png"/>
 
 ## Installation
 There is no official release version yet, since the package is under development.
 
 You can install the development version from GitHub using the `remotes` package:
 ```
-remotes::install_github("OliverDietrich/microtiter-plate-analysis-toolkit@main")
-```
-or the even less stable but more up-to-date
-```
-remotes::install_github("OliverDietrich/microtiter-plate-analysis-toolkit@develop")
+remotes::install_github("OliverDietrich/PlateData@main")
 ```
 
 > [!WARNING]
 > Early development, no stable features.
 > 
-## ToDo
-- [ ] Get example data for import methods
-  - [ ] Layout
-  - [ ] Tekan Spark
-- [ ] Write tutorial for simple timecourse experiment (design + analysis)
-- [ ] Create development branch to stabilize main
