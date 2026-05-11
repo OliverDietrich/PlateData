@@ -9,11 +9,13 @@
 #' Create a \code{PlateData} object from layout and data
 #'
 #' @param layout Data.frame containing columns 'plate' and 'well' alongside metadata
-#' @param data Data.frame containing columns \code{plate} and \code{well} alongside measurements
-#' @param measurement Column name of the measurement (e.g. OD)
-#' @param blanks ...
-#' @param controls ...
-#' @param series Name of the column that defines longitudinal measurements (e.g. 'Hours' for time series).
+#' @param data Data.frame containing columns \code{plate} and \code{well} alongside \code{value} and \code{time}
+#' @param value Measurement values
+#' @param time Name of the column that defines longitudinal measurements (e.g. 'Hours' for time series).
+#' @param treatment Column with treatment variable (e.g. Phage)
+#' @param predictors Column(s) that predict treatment effect on value (e.g. Bacterial strain AND Plasmid)
+#' @param blanks Boolean vector indicating layout rows serving as blank
+#' @param controls Boolean vector indicating layout rows serving as controls
 #'
 #' @return A \code{\link{PlateData}} object
 #'
@@ -23,10 +25,12 @@
 CreatePlateData <- function(
     layout,
     raw,
-    measurement = 'OD',
+    value,
+    time,
+    predictors,
+    treatment,
     blanks = NULL,
     controls = NULL,
-    series = 'Hours',
     ...
 ) {
 
@@ -86,6 +90,14 @@ CreatePlateData <- function(
 
     # Create combined from layout and data
     combined <- merge(raw, layout, by.x = 'key', by.y = "row.names")
+    combined$value <- combined[[value]]
+    combined$time <- combined[[time]]
+    combined$treatment <- combined[[treatment]]
+    if (length(predictors) == 1) {
+        combined$predictor <- combined[[predictors]]
+    } else {
+        combined$predictor <- apply(x[, predictors], 1, paste, collapse = '--')
+    }
 
     # Detect plate type
     my_plate_type <- detect_plate_type(layout)
@@ -95,14 +107,20 @@ CreatePlateData <- function(
     # ...
 
     # Separate blank
-    blank <- combined[blanks, ]
-    blank <- dplyr::group_by(blank, plate, Hours)
-    blank <- dplyr::summarize(blank, blank = mean(OD), sd_blank = sd(OD))
+    blank_keys <- rownames(layout[blanks, ])
+    ind <- combined$key %in% blank_keys
+    blank <- combined[ind, ]
+    blank <- dplyr::group_by(blank, plate, time)
+    blank <- dplyr::summarize(blank, blank = mean(value), sd_blank = sd(value))
+    blank <- as.data.frame(blank)
 
     # Separate controls
-    control <- combined[controls, ]
-    control <- dplyr::group_by(control, plate, Hours, Strain)
-    control <- dplyr::summarize(control, control = mean(OD), sd_control = sd(OD))
+    control_keys <- rownames(layout[controls, ])
+    ind <- combined$key %in% control_keys
+    control <- combined[ind, ]
+    control <- dplyr::group_by(control, plate, time, predictor)
+    control <- dplyr::summarize(control, control = mean(value), sd_control = sd(value))
+    control <- as.data.frame(control)
 
     # Add blank to control
     control <- merge(control, blank)
@@ -110,33 +128,42 @@ CreatePlateData <- function(
     control$sd_corrected_control <- sqrt( control$sd_control^2 + control$sd_blank^2 - 0 * control$sd_control * control$sd_blank)
     
     # Separate data
-    data <- combined[!blanks & !controls, ]
+    ind <- which(!combined$key %in% c(blank_keys, control_keys)) # Why the fuck does this not work???
+    data <- combined[ind, ]
 
     # Summarize data
-    #summary <- dplyr::group_by(data, plate, Hours, Strain, Phage_alias) %>% summarize(mean_OD = mean(OD), median_OD = median(OD), sd_OD = sd(OD))
+    summary <- dplyr::group_by(data, plate, time, predictor, treatment) %>% summarize(mean_value = mean(value), median_value = median(value), sd_value = sd(value))
 
     # Add control (and, by extension, blanks) to data and summary
     data <- merge(data, control)
     summary <- merge(summary, control)
 
+    # Correct data
+    data$corrected_value <- data$value - data$blank
+    data$sd_corrected_value <- data$sd_blank
+
     # Normalise data
-    #data$normalised_OD <- data$corrected_OD / data$corrected_control
-    #data$sd_normalised_OD <- sqrt(data$normalised_OD^2) * sqrt( (data$sd_corrected_OD / data$corrected_OD)^2 + (data$sd_corrected_control / data$corrected_control)^2 - 0 )
+    data$normalised_value <- data$corrected_value / data$corrected_control
+    data$sd_normalised_value <- sqrt(data$normalised_value^2) * sqrt( (data$sd_corrected_value / data$corrected_value)^2 + (data$sd_corrected_control / data$corrected_control)^2 - 0 )
     
     # Correct summary
-    #summary$corrected_mean_OD <- summary$mean_OD - summary$blank
-    #summary$corrected_median_OD <- summary$median_OD - summary$blank
-    #summary$sd_corrected_mean_OD <- sqrt( summary$sd_OD^2 + summary$sd_blank^2 - 0 * summary$sd_OD * summary$sd_blank)
+    summary$corrected_mean_value <- summary$mean_value - summary$blank
+    summary$corrected_median_value <- summary$median_value - summary$blank
+    summary$sd_corrected_mean_value <- sqrt( summary$sd_value^2 + summary$sd_blank^2 - 0 * summary$sd_value * summary$sd_blank)
     
     # Normalise summary
-    #summary$normalised_mean_OD <- summary$corrected_mean_OD / summary$corrected_control
-    #summary$normalised_median_OD <- summary$corrected_median_OD / summary$corrected_control
-    #summary$sd_normalised_mean_OD <- sqrt(summary$normalised_mean_OD^2) * sqrt( (summary$sd_corrected_mean_OD / summary$corrected_mean_OD)^2 + (summary$sd_corrected_control / summary$corrected_control)^2 - 0 )
+    summary$normalised_mean_value <- summary$corrected_mean_value / summary$corrected_control
+    summary$normalised_median_value <- summary$corrected_median_value / summary$corrected_control
+    summary$sd_normalised_mean_value <- sqrt(summary$normalised_mean_value^2) * sqrt( (summary$sd_corrected_mean_value / summary$corrected_mean_value)^2 + (summary$sd_corrected_control / summary$corrected_control)^2 - 0 )
 
     # Create object
     methods::new("PlateData", 
                  layout = layout, 
                  raw = raw, 
+                 value = value,
+                 time = time,
+                 treatment = treatment,
+                 predictors = predictors,
                  combined = combined, 
                  blank = blank,
                  control = control,
@@ -214,6 +241,15 @@ setMethod("raw", "PlateData", function(x) x@raw)
 #' @examples 
 #' layout(object)
 setMethod("layout", "PlateData", function(x) x@layout)
+
+#-------------------------------------------------------------------------------
+# Column assignments
+#-------------------------------------------------------------------------------
+
+setMethod("value", "PlateData", function(x) x@value)
+setMethod("time", "PlateData", function(x) x@time)
+setMethod("treatment", "PlateData", function(x) x@treatment)
+setMethod("predictors", "PlateData", function(x) x@predictors)
 
 #-------------------------------------------------------------------------------
 # combined
@@ -316,6 +352,8 @@ setMethod("type", "PlateData", function(x) x@type)
         "across", length(type(object)), "plates (see type)", "\n",
         "measuring", nrow(data(object)), "data points", "\n", "\n"
        )
+    cat(paste('Formula:', value(pd), '~', time(pd), '+', treatment(pd), '+', paste(predictors(pd), collapse = ' - ')))
+    cat("\n\n")
     cat("layout", "\n")
     str(layout(object))
     cat("\n")
@@ -324,6 +362,18 @@ setMethod("type", "PlateData", function(x) x@type)
     cat("\n")
     cat("combined", "\n")
     str(combined(object), max.level = 0)
+    cat("\n")
+    cat("blank", "\n")
+    str(blank(object), max.level = 0)
+    cat("\n")
+    cat("control", "\n")
+    str(control(object), max.level = 0)
+    cat("\n")
+    cat("data", "\n")
+    str(data(object), max.level = 0)
+    cat("\n")
+    cat("summary", "\n")
+    str(summary(object), max.level = 0)
     cat("\n")
     cat("type:", type(object))
 }

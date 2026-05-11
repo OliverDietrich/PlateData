@@ -12,6 +12,18 @@ setGeneric("raw", function(x) standardGeneric("raw"))
 setGeneric("layout", function(x) standardGeneric("layout"))
 
 #' @export
+setGeneric("value", function(x) standardGeneric("value"))
+
+#' @export
+setGeneric("time", function(x) standardGeneric("time"))
+
+#' @export
+setGeneric("treatment", function(x) standardGeneric("treatment"))
+
+#' @export
+setGeneric("predictors", function(x) standardGeneric("predictors"))
+
+#' @export
 setGeneric("combined", function(x) standardGeneric("combined"))
 
 #' @export
