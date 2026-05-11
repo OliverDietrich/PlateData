@@ -38,4 +38,4 @@ Tutorials are available in [vignettes](vignettes/) that show typical use cases
 ### More complex analyses
 
 ## Correction, Normalisation and Uncertainty Propagation
-...
+[Uncertainty propagation](https://en.wikipedia.org/wiki/Propagation_of_uncertainty)
