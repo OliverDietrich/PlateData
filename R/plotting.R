@@ -1,5 +1,3 @@
-################################################################################
-
 #' Plot the plate layout
 #'
 #' @param object PlateData object
@@ -110,8 +108,6 @@ plot_plateLayout <- function(
   return(p)
 }
 
-################################################################################
-
 #' Plot series data
 #' 
 #' Visualize numeric measurements stored in a PlateData object. 
@@ -119,6 +115,7 @@ plot_plateLayout <- function(
 #' Can be faceted by categorical vectors. 
 #' 
 #' @param object PlateData object
+#' @param slot Slot to get data from (combined, data, summary)
 #' @param x Column used for y axis
 #' @param y Column used for x axis
 #' @param col Column name to color measurements by
@@ -127,37 +124,36 @@ plot_plateLayout <- function(
 #' 
 #' @export
 plot_series <- function(
-  object = NULL,
-  x = NULL,
-  y = NULL,
-  col = NULL,
-  group = key(object),
-  facet = "plate",
-  facet_scales = "fixed",
-  facet_rows = NULL,
-  theme_size = 20,
-  pl_title = "Series",
-  y_transform = NULL,
-  x_transform = NULL,
-  xlab = x,
-  ylab = y,
-  pl.barwidth=1,
-  pl.barheight=10,
-  color.pal = "RdYlBu",
-  color.pal.dir = -1,
-  color.values = NULL,
-  ...
+  object,
+    slot = 'combined',
+    x = NULL,
+    y = NULL,
+    col = NULL,
+    group = 'key',
+    facet = "plate",
+    facet_scales = "fixed",
+    facet_rows = NULL,
+    theme_size = 20,
+    pl_title = "Series",
+    y_transform = NULL,
+    x_transform = NULL,
+    xlab = x,
+    ylab = y,
+    pl.barwidth=1,
+    pl.barheight=10,
+    color.pal = "RdYlBu",
+    color.pal.dir = -1,
+    color.values = NULL,
+    ...
 ) {
+    
+    stopifnot(
+        class(object) == 'PlateData',
+        slot %in% c('combined','data','summary')
+    )
   
-  stopifnot(
-    !is.null(object),
-    !is.null(x),
-    !is.null(y)
-  )
-  
-  # Create data.frame with generic names
-  dat <- merge_data_to_layout(object)
-  df <- data.frame(.key = dat[[key(object)]])
+  # Fetch data
+  df <- slot(object, slot)
   
   # Check presence and type of columns
   n <- 1
@@ -261,7 +257,7 @@ plot_series <- function(
 
   # Plot
   plot <- ggplot2::ggplot(df, ggplot2::aes(x, y, col = col)) +
-    ggplot2::geom_point() +
+    #ggplot2::geom_point() +
     ggplot2::geom_line(ggplot2::aes(group = group)) +
     faceting +
     theme  +
@@ -272,3 +268,9 @@ plot_series <- function(
   
   return(plot)
 }
+
+#' Plot series minus blank
+# ...
+
+#' Plot series normalised by control
+# ...

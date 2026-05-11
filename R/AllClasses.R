@@ -14,11 +14,14 @@
 methods::setClass(
   Class = "PlateData",
   slots = c(
+    raw = "data.frame",
     layout = "data.frame",
+    combined = "data.frame",
+    blank = "data.frame",
+    control = "data.frame",
     data = "data.frame",
-    key = "character",
+    summary = "data.frame",
     type = "vector",
     misc = "list"
   )
 )
-

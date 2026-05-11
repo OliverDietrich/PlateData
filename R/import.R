@@ -12,36 +12,44 @@ import_plateLayout <- function(
     file_path = NULL,
     plate_name = 'unspecified'
 ) {
+    
+    stopifnot(
+        !is.null(file_path),
+        file.exists(file_path)
+    )
+    
+    # Read data
+    object <- as.data.frame(readxl::read_excel(file_path))
+    
+    ind <- stringr::str_to_lower(names(object)) == 'well'
+    if (sum(ind) < 1) stop('Layout must contain column "well".')
+    if (sum(ind) > 1) stop('Layout must contain only one column "well". Found more than one...')
+    
+    # Handle uppercase 'Well' by (re-)assigning vector to lowercase 'well'
+    object$well <- object[[which(ind)]]
+    object$Well <- NULL
 
-  stopifnot(
-    !is.null(file_path),
-    file.exists(file_path)
-  )
-
-  # Read data
-  object <- as.data.frame(readxl::read_excel(file_path))
-
-  if (!'well' %in% names(object)) {
-    stop('Layout must contain column "well".')
-  }
+    # Decide on the indentation (I guess Rstudio vs. Jupyter?!)
 
   # Remove empty rows
   object <- object[!is.na(object$well), ]
 
   # Extract rows (A, B, C, ...) from well_key (A1, B1, ...) and store as factor
-  object$row <- as.character(stringr::str_split_fixed(object$well, "", n = 2)[, 1])
-  object$row <- factor(object$row, LETTERS[1:match(tail(sort(object$row), 1), LETTERS)])
+  #object$row <- as.character(stringr::str_split_fixed(object$well, "", n = 2)[, 1])
+  #object$row <- factor(object$row, LETTERS[1:match(tail(sort(object$row), 1), LETTERS)])
 
   # Extract cols (1, 2, 3, ...) from well_key (A1, A2, ...) and store as factor
-  object$col <- as.numeric(stringr::str_split_fixed(object$well, "", n = 2)[, 2])
-  object$col <- factor(object$col, 1:max(object$col))
+  #object$col <- as.numeric(stringr::str_split_fixed(object$well, "", n = 2)[, 2])
+  #object$col <- factor(object$col, 1:max(object$col))
 
   # Add plate column
   object$plate <- plate_name
-  object$key <- paste0(object$plate, '_', object$well)
+  #object$key <- paste0(object$plate, '_', object$well)
 
   return(object)
 }
+
+#' Import data from 
 
 #' Import data from Tekan Spark
 #'
