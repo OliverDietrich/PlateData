@@ -9,10 +9,8 @@
 #' @export
 #'
 import_plateLayout <- function(
-    file_path = NULL,
-    plate_name = 'unspecified'
+    file_path = NULL
 ) {
-    
     stopifnot(
         !is.null(file_path),
         file.exists(file_path)
@@ -28,25 +26,11 @@ import_plateLayout <- function(
     # Handle uppercase 'Well' by (re-)assigning vector to lowercase 'well'
     object$well <- object[[which(ind)]]
     object$Well <- NULL
-
-    # Decide on the indentation (I guess Rstudio vs. Jupyter?!)
-
-  # Remove empty rows
-  object <- object[!is.na(object$well), ]
-
-  # Extract rows (A, B, C, ...) from well_key (A1, B1, ...) and store as factor
-  #object$row <- as.character(stringr::str_split_fixed(object$well, "", n = 2)[, 1])
-  #object$row <- factor(object$row, LETTERS[1:match(tail(sort(object$row), 1), LETTERS)])
-
-  # Extract cols (1, 2, 3, ...) from well_key (A1, A2, ...) and store as factor
-  #object$col <- as.numeric(stringr::str_split_fixed(object$well, "", n = 2)[, 2])
-  #object$col <- factor(object$col, 1:max(object$col))
-
-  # Add plate column
-  object$plate <- plate_name
-  #object$key <- paste0(object$plate, '_', object$well)
-
-  return(object)
+    
+    # Remove empty rows
+    object <- object[!is.na(object$well), ]
+    
+    return(object)
 }
 
 #' Import data from 

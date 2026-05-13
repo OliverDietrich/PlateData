@@ -67,7 +67,17 @@ CreatePlateData <- function(
         warning("Found column 'Well' in raw, changed to 'well'.")
     }
     if (!'well' %in% names(layout)) stop("Column 'well' missing from layout. Stopped...")
-    if (!'well' %in% names(raw)) stop("Column 'well' missing from raw Stopped...")
+    if (!'well' %in% names(raw)) stop("Column 'well' missing from 'raw'. Stopped...")
+    if (!value %in% names(raw)) stop(paste("Column", value, "not contained in 'raw'. Stopped..."))
+    if (!time %in% names(raw)) stop(paste("Column", time, "not contained in 'raw'. Stopped..."))
+    if (!treatment %in% names(layout)) stop(paste("Column", treatment, "not contained in 'layout'. Stopped..."))
+    for (i in predictors) {
+        if (!i %in% names(layout)) stop(paste("Column", i, "not contained in 'layout'. Stopped..."))
+    }
+
+    # Force data type
+    raw <- as.data.frame(raw)
+    layout <- as.data.frame(layout)
     
     # Create key
     row.names(layout) <- paste(layout$plate, layout$well, sep = '_')
@@ -88,6 +98,18 @@ CreatePlateData <- function(
         stop(msg)
     }
 
+    # Deal with unregistered wells
+    ind <- raw$key %in% row.names(layout)
+    if (!all(ind)) {
+        warning('Some wells in raw data are not registered in layout. Removing...')
+        raw <- raw[ind, ]
+    }
+    ind <- row.names(layout) %in% raw$key
+    if (!all(ind)) {
+        warning('Some wells defined in layout are not present in raw data. Removing...')
+        layout <- layout[ind, ]
+    }
+
     # Create combined from layout and data
     combined <- merge(raw, layout, by.x = 'key', by.y = "row.names")
     combined$value <- combined[[value]]
@@ -96,31 +118,57 @@ CreatePlateData <- function(
     if (length(predictors) == 1) {
         combined$predictor <- combined[[predictors]]
     } else {
-        combined$predictor <- apply(x[, predictors], 1, paste, collapse = '--')
+        combined$predictor <- apply(combined[, predictors], 1, paste, collapse = '--')
+    }
+
+    # Check mandatory columns
+    for (i in c('value', 'time', 'plate', 'well')) {
+        msg <- paste0("Column '", i, "' shows NA values.")
+        if (any(is.na(combined[[i]]))) stop(msg)
     }
 
     # Detect plate type
     my_plate_type <- detect_plate_type(layout)
-
-    
-    # Deal with unregistered wells
-    # ...
 
     # Separate blank
     blank_keys <- rownames(layout[blanks, ])
     ind <- combined$key %in% blank_keys
     blank <- combined[ind, ]
     blank <- dplyr::group_by(blank, plate, time)
-    blank <- dplyr::summarize(blank, blank = mean(value), sd_blank = sd(value))
+    blank <- dplyr::summarize(blank,
+                              blank = mean(value, na.rm = TRUE), 
+                              sd_blank = sd(value, na.rm = TRUE))
     blank <- as.data.frame(blank)
+    if (nrow(blank) == 0) {
+        warning('Blank was not found. Defaulting to zero...')
+        blank <- base::expand.grid('plate' = as.character(unique(combined$plate)), 
+                                   'time' = as.character(unique(combined$time)), 
+                                   KEEP.OUT.ATTRS = FALSE)
+        blank$blank <- 0
+        blank$sd_blank <- 0
+    }
+    if (nrow(blank) < length(unique(raw$plate)) * length(unique(raw$time))) {
+        Stop('Blank was formatted incorrectly. Stopped.')   
+    }
 
     # Separate controls
     control_keys <- rownames(layout[controls, ])
     ind <- combined$key %in% control_keys
     control <- combined[ind, ]
     control <- dplyr::group_by(control, plate, time, predictor)
-    control <- dplyr::summarize(control, control = mean(value), sd_control = sd(value))
+    control <- dplyr::summarize(control, 
+                                control = mean(value, na.rm = TRUE), 
+                                sd_control = sd(value, na.rm = TRUE))
     control <- as.data.frame(control)
+    if (nrow(control) == 0) {
+        warning('Control was not found. Defaulting to NA...')
+        control <- base::expand.grid('plate' = as.character(unique(combined$plate)), 
+                                     'time' = as.character(unique(combined$time)), 
+                                     'predictor' = as.character(unique(combined$predictor)),
+                                     KEEP.OUT.ATTRS = FALSE)
+        control$control <- NA
+        control$sd_control <- NA
+    }
 
     # Add blank to control
     control <- merge(control, blank)
@@ -128,14 +176,16 @@ CreatePlateData <- function(
     control$sd_corrected_control <- sqrt( control$sd_control^2 + control$sd_blank^2 - 0 * control$sd_control * control$sd_blank)
     
     # Separate data
-    ind <- which(!combined$key %in% c(blank_keys, control_keys)) # Why the fuck does this not work???
+    ind <- which(!combined$key %in% c(blank_keys, control_keys))
     data <- combined[ind, ]
 
     # Summarize data
-    summary <- dplyr::group_by(data, plate, time, predictor, treatment) %>% summarize(mean_value = mean(value), median_value = median(value), sd_value = sd(value))
+    summary <- dplyr::group_by(data, plate, time, predictor, treatment) %>% summarize(mean_value = mean(value, na.rm = TRUE), 
+                                                                                      median_value = median(value, na.rm = TRUE), 
+                                                                                      sd_value = sd(value, na.rm = TRUE))
 
     # Add control (and, by extension, blanks) to data and summary
-    data <- merge(data, control)
+    data <- merge(data, control) # BUG! Merging with an empty data.frame returns empty result...
     summary <- merge(summary, control)
 
     # Correct data
@@ -350,9 +400,9 @@ setMethod("type", "PlateData", function(x) x@type)
     cat(is(object), "\n",
         "Total", nrow(layout(object)), "wells (see layout)", "\n",
         "across", length(type(object)), "plates (see type)", "\n",
-        "measuring", nrow(data(object)), "data points", "\n", "\n"
+        "measuring", nrow(combined(object)), "data points", "\n", "\n"
        )
-    cat(paste('Formula:', value(pd), '~', time(pd), '+', treatment(pd), '+', paste(predictors(pd), collapse = ' - ')))
+    cat(paste('Formula:', value(pd), '~', time(pd), '+', treatment(pd), '+', paste(predictors(pd), collapse = '--')))
     cat("\n\n")
     cat("layout", "\n")
     str(layout(object))

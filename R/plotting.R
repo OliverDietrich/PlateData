@@ -216,7 +216,7 @@ plot_curves <- function(object,
     # Data
     gg_data_error +
     gg_data +
-    ggplot2::facet_wrap(~ treatment) +
+    ggplot2::facet_wrap(~ predictor) +
     # Customize
     ggplot2::theme_bw(theme.size) +
     ggplot2::theme(
