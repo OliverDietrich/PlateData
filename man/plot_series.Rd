@@ -5,11 +5,12 @@
 \title{Plot series data}
 \usage{
 plot_series(
-  object = NULL,
+  object,
+  slot = "combined",
   x = NULL,
   y = NULL,
   col = NULL,
-  group = key(object),
+  group = "key",
   facet = "plate",
   facet_scales = "fixed",
   facet_rows = NULL,
@@ -29,6 +30,8 @@ plot_series(
 }
 \arguments{
 \item{object}{PlateData object}
+
+\item{slot}{Slot to get data from (combined, data, summary)}
 
 \item{x}{Column used for y axis}
 

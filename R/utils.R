@@ -70,7 +70,8 @@ mutate_well_to_row_col_indices <- function(object) {
 #' 
 #' @export
 detect_plate_type <- function(object) {
-    
+
+    object <- mutate_well_to_row_col_indices(object)
     stopifnot(
       c("plate", "well", "row", "col") %in% names(object)
     )
@@ -205,7 +206,7 @@ merge_data_to_layout <- function(
   )
 
   # Merge
-  df <- merge(data(object), layout(object), by.x = key(object), by.y = "row.names")
+  df <- merge(data(object), layout(object), by.x = 'key', by.y = "row.names")
 
   return(df)
 }

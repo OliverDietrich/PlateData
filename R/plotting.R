@@ -1,5 +1,3 @@
-################################################################################
-
 #' Plot the plate layout
 #'
 #' @param object PlateData object
@@ -110,7 +108,125 @@ plot_plateLayout <- function(
   return(p)
 }
 
-################################################################################
+#' Plot curves
+#'
+#' Visualize PlateData as curves, i.e. values by time.
+#' ...
+#'
+#' @param object PlateData object
+#' @param slot Slot to get data from (data, summary)
+#' @param type Whether to show 'raw', 'corrected', or 'normalised' data. Corrected data has blank subtracted. Normalised data is divided by control.
+#' @param theme.size
+#' @param legend.position
+#' 
+plot_curves <- function(object, 
+                        slot = 'data',
+                        type = 'raw',
+                        theme.size = 20,
+                        legend.position = 'top'
+                        ) {
+
+  # Checks
+  stopifnot(class(object) == 'PlateData')
+  if (!slot %in% c('data','summary')) stop("Slot must be either 'data' or 'summary'. Check input!")
+  if (!type %in% c('raw','corrected','normalised')) stop("Type must be either 'raw', 'corrected' or 'normalised'. Check input!")
+
+  # Fetch data
+  df <- slot(object, slot)
+
+  # Define components
+  if (type == 'raw') {
+    gg_blank_error <- ggplot2::geom_ribbon(ggplot2::aes(y = blank, 
+                                                        ymin = blank - sd_blank, 
+                                                        ymax = blank + sd_blank), alpha = .25, fill = 'grey20')
+    gg_blank <- ggplot2::geom_line(ggplot2::aes(y = blank))
+    gg_control_error <- ggplot2::geom_ribbon(ggplot2::aes(y = control, 
+                                                          ymin = control - sd_control, 
+                                                          ymax = control + sd_control), alpha = .25, fill = 'grey20')
+    gg_control <- ggplot2::geom_line(ggplot2::aes(y = control))
+    if (slot == 'data') {
+      gg_data_error <- NULL
+      gg_data <- ggplot2::geom_line(ggplot2::aes(y = value, col = treatment, group = key))
+    } else {
+      gg_data_error <- ggplot2::geom_ribbon(ggplot2::aes(y = mean_value, 
+                                                         ymin = mean_value - sd_value, 
+                                                         ymax = mean_value + sd_value, 
+                                                         fill = treatment), alpha = .25)
+      gg_data <- ggplot2::geom_line(ggplot2::aes(y = median_value, 
+                                                 col = treatment))
+    }
+    y_lab <- value(object)
+  } else {
+    gg_blank_error <- NULL
+    gg_blank <- NULL
+  }
+  if (type == 'corrected') {
+    gg_control_error <- ggplot2::geom_ribbon(ggplot2::aes(y = corrected_control, 
+                                                          ymin = corrected_control - sd_corrected_control, 
+                                                          ymax = corrected_control + sd_corrected_control), alpha = .25, fill = 'grey20')
+    gg_control <- ggplot2::geom_line(ggplot2::aes(y = corrected_control))
+    if (slot == 'data') {
+      gg_data_error <- ggplot2::geom_ribbon(ggplot2::aes(y = corrected_value, 
+                                                         ymin = corrected_value - sd_corrected_value, 
+                                                         ymax = corrected_value + sd_corrected_value, 
+                                                         fill = treatment, 
+                                                         group = key), alpha = .25)
+      gg_data <- ggplot2::geom_line(ggplot2::aes(y = corrected_value, col = treatment, group = key))
+    } else {
+      gg_data_error <- ggplot2::geom_ribbon(ggplot2::aes(y = corrected_mean_value, 
+                                                         ymin = corrected_mean_value - sd_corrected_mean_value, 
+                                                         ymax = corrected_mean_value + sd_corrected_mean_value, 
+                                                         fill = treatment), alpha = .25)
+      gg_data <- ggplot2::geom_line(ggplot2::aes(y = corrected_median_value,
+                                                 col = treatment))
+    }
+    y_lab <- paste('Corrected', value(object))
+  }
+  if (type == 'normalised') {
+    gg_control_error <- ggplot2::geom_ribbon(ggplot2::aes(y = 1, 
+                                                          ymin = 1 - 1 * sqrt((sd_corrected_control/corrected_control)^2), 
+                                                          ymax = 1 + 1 * sqrt((sd_corrected_control/corrected_control)^2)), alpha = .25, fill = 'grey20')
+    gg_control <- ggplot2::geom_line(ggplot2::aes(y = 1))
+    if (slot == 'data') {
+      gg_data_error <- ggplot2::geom_ribbon(ggplot2::aes(y = normalised_value, 
+                                                         ymin = normalised_value - sd_normalised_value, 
+                                                         ymax = normalised_value + sd_normalised_value, 
+                                                         fill = treatment, 
+                                                         group = key), alpha = .25)
+      gg_data <- ggplot2::geom_line(ggplot2::aes(y = normalised_value, col = treatment, group = key))
+    } else {
+      gg_data_error <- ggplot2::geom_ribbon(ggplot2::aes(y = normalised_mean_value,
+                                                         ymin = normalised_mean_value - sd_normalised_mean_value, 
+                                                         ymax = normalised_mean_value + sd_normalised_mean_value, 
+                                                         fill = treatment), alpha = .25)
+      gg_data <- ggplot2::geom_line(ggplot2::aes(y = normalised_median_value,
+                                                 col = treatment))
+    }
+    y_lab <- paste('Normalised', value(object))
+  }
+
+  # Plot
+  graph <- ggplot2::ggplot(df, ggplot2::aes(x = time)) +
+    # Blank
+    gg_blank_error +
+    gg_blank +
+    # Control
+    gg_control_error +
+    gg_control +
+    # Data
+    gg_data_error +
+    gg_data +
+    ggplot2::facet_wrap(~ predictor) +
+    # Customize
+    ggplot2::theme_bw(theme.size) +
+    ggplot2::theme(
+      legend.position = legend.position
+      ) +
+    ggplot2::labs(y = y_lab, x = time(pd))
+
+  # Exit
+  return(graph)
+}
 
 #' Plot series data
 #' 
@@ -119,6 +235,7 @@ plot_plateLayout <- function(
 #' Can be faceted by categorical vectors. 
 #' 
 #' @param object PlateData object
+#' @param slot Slot to get data from (combined, data, summary)
 #' @param x Column used for y axis
 #' @param y Column used for x axis
 #' @param col Column name to color measurements by
@@ -127,37 +244,36 @@ plot_plateLayout <- function(
 #' 
 #' @export
 plot_series <- function(
-  object = NULL,
-  x = NULL,
-  y = NULL,
-  col = NULL,
-  group = key(object),
-  facet = "plate",
-  facet_scales = "fixed",
-  facet_rows = NULL,
-  theme_size = 20,
-  pl_title = "Series",
-  y_transform = NULL,
-  x_transform = NULL,
-  xlab = x,
-  ylab = y,
-  pl.barwidth=1,
-  pl.barheight=10,
-  color.pal = "RdYlBu",
-  color.pal.dir = -1,
-  color.values = NULL,
-  ...
+  object,
+    slot = 'combined',
+    x = NULL,
+    y = NULL,
+    col = NULL,
+    group = 'key',
+    facet = "plate",
+    facet_scales = "fixed",
+    facet_rows = NULL,
+    theme_size = 20,
+    pl_title = "Series",
+    y_transform = NULL,
+    x_transform = NULL,
+    xlab = x,
+    ylab = y,
+    pl.barwidth=1,
+    pl.barheight=10,
+    color.pal = "RdYlBu",
+    color.pal.dir = -1,
+    color.values = NULL,
+    ...
 ) {
+    
+    stopifnot(
+        class(object) == 'PlateData',
+        slot %in% c('combined','data','summary')
+    )
   
-  stopifnot(
-    !is.null(object),
-    !is.null(x),
-    !is.null(y)
-  )
-  
-  # Create data.frame with generic names
-  dat <- merge_data_to_layout(object)
-  df <- data.frame(.key = dat[[key(object)]])
+  # Fetch data
+  df <- slot(object, slot)
   
   # Check presence and type of columns
   n <- 1
@@ -261,7 +377,7 @@ plot_series <- function(
 
   # Plot
   plot <- ggplot2::ggplot(df, ggplot2::aes(x, y, col = col)) +
-    ggplot2::geom_point() +
+    #ggplot2::geom_point() +
     ggplot2::geom_line(ggplot2::aes(group = group)) +
     faceting +
     theme  +
