@@ -8,8 +8,7 @@
 }
 \description{
 The \code{data} slot in an PlateData object holds
-a data.frame containing measurements attributable to
-individual wells. Can contain multiple rows per well.
+a data.frame containing data (not blank or control) extracted from combined(object)
 }
 \examples{
 data(object)

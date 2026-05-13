@@ -2,7 +2,8 @@
 % Please edit documentation in R/import.R
 \name{import_tekanSpark}
 \alias{import_tekanSpark}
-\title{Import data from Tekan Spark}
+\title{Import data from
+Import data from Tekan Spark}
 \usage{
 import_tekanSpark(file_path = NULL, plate_name = "unspecified")
 }

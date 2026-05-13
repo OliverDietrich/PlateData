@@ -6,30 +6,36 @@
 \usage{
 CreatePlateData(
   layout,
-  data = NULL,
-  misc = list(),
-  key = "key",
-  remove_unregistered_wells = FALSE,
-  add_unregistered_wells = FALSE,
+  raw,
+  value,
+  time,
+  predictors,
+  treatment,
+  blanks = NULL,
+  controls = NULL,
   ...
 )
 }
 \arguments{
 \item{layout}{Data.frame containing columns 'plate' and 'well' alongside metadata}
 
-\item{data}{Data.frame containing columns \code{plate} and \code{well} alongside measurements}
+\item{value}{Measurement values}
 
-\item{misc}{List of miscellaneous information}
+\item{time}{Name of the column that defines longitudinal measurements (e.g. 'Hours' for time series).}
 
-\item{key}{Key to match data.frames between layout and data}
+\item{predictors}{Column(s) that predict treatment effect on value (e.g. Bacterial strain AND Plasmid)}
 
-\item{remove_unregistered_wells}{Whether to remove wells from data that do not appear in layout}
+\item{treatment}{Column with treatment variable (e.g. Phage)}
 
-\item{add_unregistered_wells}{Whether to add wells that appear in data to layout}
+\item{blanks}{Boolean vector indicating layout rows serving as blank}
+
+\item{controls}{Boolean vector indicating layout rows serving as controls}
+
+\item{data}{Data.frame containing columns \code{plate} and \code{well} alongside \code{value} and \code{time}}
 }
 \value{
 A \code{\link{PlateData}} object
 }
 \description{
-Create a \code{PlateData} object from layout
+Create a \code{PlateData} object from layout and data
 }
