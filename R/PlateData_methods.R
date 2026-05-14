@@ -74,6 +74,7 @@ CreatePlateData <- function(
     for (i in predictors) {
         if (!i %in% names(layout)) stop(paste("Column", i, "not contained in 'layout'. Stopped..."))
     }
+    if (!all(raw$plate %in% layout$plate)) stop("Plates in 'raw' do not correspond to plates in 'layout'. Stopped...")
 
     # Force data type
     raw <- as.data.frame(raw)
@@ -101,13 +102,17 @@ CreatePlateData <- function(
     # Deal with unregistered wells
     ind <- raw$key %in% row.names(layout)
     if (!all(ind)) {
-        warning('Some wells in raw data are not registered in layout. Removing...')
+        N <- sum(!ind)
+        msg <- paste(N, 'wells in raw data are not registered in layout. Removing...')
+        warning(msg)
         raw <- raw[ind, ]
     }
     ind <- row.names(layout) %in% raw$key
     if (!all(ind)) {
-        warning('Some wells defined in layout are not present in raw data. Removing...')
-        layout <- layout[ind, ]
+        N <- sum(!ind)
+        msg <- paste(N, 'wells in layout are not registered in raw data.')
+        warning(msg)
+        #layout <- layout[ind, ]
     }
 
     # Create combined from layout and data
@@ -399,9 +404,11 @@ setMethod("type", "PlateData", function(x) x@type)
 .pd_show <- function(object) {
     cat(is(object), "\n",
         "Total", nrow(layout(object)), "wells (see layout)", "\n",
-        "across", length(type(object)), "plates (see type)", "\n",
+        "across", length(type(object)), "plate(s) (see type)", "\n",
         "measuring", nrow(combined(object)), "data points", "\n", "\n"
        )
+    cat(paste('Formula: value ~ time + treatment + predictor'))
+    cat("\n")
     cat(paste('Formula:', value(pd), '~', time(pd), '+', treatment(pd), '+', paste(predictors(pd), collapse = '--')))
     cat("\n\n")
     cat("layout", "\n")

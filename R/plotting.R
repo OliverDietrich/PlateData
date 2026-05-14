@@ -123,7 +123,8 @@ plot_curves <- function(object,
                         slot = 'data',
                         type = 'raw',
                         theme.size = 20,
-                        legend.position = 'top'
+                        legend.position = 'top',
+                        n.rows = NULL
                         ) {
 
   # Checks
@@ -216,13 +217,13 @@ plot_curves <- function(object,
     # Data
     gg_data_error +
     gg_data +
-    ggplot2::facet_wrap(~ predictor) +
+    ggplot2::facet_wrap(~ predictor, nrow = n.rows) +
     # Customize
     ggplot2::theme_bw(theme.size) +
     ggplot2::theme(
       legend.position = legend.position
       ) +
-    ggplot2::labs(y = y_lab, x = time(pd))
+    ggplot2::labs(y = y_lab, x = time(pd), col = treatment(pd), fill = treatment(pd))
 
   # Exit
   return(graph)
