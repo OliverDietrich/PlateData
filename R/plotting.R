@@ -223,7 +223,7 @@ plot_curves <- function(object,
     ggplot2::theme(
       legend.position = legend.position
       ) +
-    ggplot2::labs(y = y_lab, x = time(pd), col = treatment(pd), fill = treatment(pd))
+    ggplot2::labs(y = y_lab, x = time(object), col = treatment(object), fill = treatment(object))
 
   # Exit
   return(graph)
